@@ -1,0 +1,2359 @@
+######################## Bitmap Display Configuration ########################
+# - Unit width in pixels: 8
+# - Unit height in pixels: 8
+# - Display width in pixels: 256
+# - Display height in pixels: 256
+# - Base Address for Display: 0x10008000 ($gp)
+# # 23 row, 14 column
+################# Make gravity increase gradually over time
+################# Easy/Medium/Hard 
+################# Retry
+################# P
+##############################################################################
+        .data
+    ADDR_DSPL:
+        .word 0x10008000
+    ADDR_KBRD:
+        .word 0xffff0000
+    ADDR_EXIST_BOX_STACK:
+        .word 0x7ff2f82c
+    ADDR_TOP_MID:
+        .word 0x10008328
+#############################################################################
+LEFT_BOT:       .word 3848
+RIGHT_BOT:      .word 3912
+LEFT_TOP:       .word 648
+RIGHT_TOP:      .word 712
+TOP_C_L:        .word 672
+TOP_C_R:        .word 688
+TOP_T_L:        .word 416
+TOP_T_R:        .word 432
+START_POSI_U:   .word 424
+START_POSI_D:   .word 552
+NEXT_POSI_U:    .word 1104
+NEXT_POSI_D:    .word 1232
+############################################################################
+RED:            .word 0xff0000
+BLUE:           .word 0x0000ff
+YELLOW:         .word 0xffff00
+BLACK:          .word 00000000
+WHITE:          .word 0xffffff
+############################################################################
+GAME_OVER:      .asciiz "Game_over_4s.wav"
+############################################################################
+    .text
+	.globl main
+main:
+    sw $zero, -48($sp)                # original score                                                                                                                            -48 $sp Score
+    sw $zero, -56($sp)                # original disappear blocks                                                                                                                 -56 $sp number of blocks disapear
+    lw $s4, ADDR_EXIST_BOX_STACK    # store normal
+    lw $s5, ADDR_EXIST_BOX_STACK    # store virus
+Select_E_M_H:
+    jal Clean
+    jal Diff_Draw          # Draw the selection graph
+    jal Keyboard_EMH       # jump to let keyboard input 
+#############################################################################################################################################
+OriginalPlace:
+Create_Start_one:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t8, START_POSI_U    # $t4 store upper start point
+    add $t8, $t0, $t8       # renew the $t4 as index in graph
+    lw $t9, START_POSI_D    # $t5 store down start point
+    add $t9, $t0, $t9       # renew the $t5 as index in graph
+    
+    jal Random_Color        # take a random color
+    move $s0, $v0           # use $t1 to store up one color
+    sw $s0, 0($t8)          # draw the up box
+    jal Random_Color        # take a random color
+    move $s1, $v0           # use $t2 to store down one color
+    sw $s1, 0($t9)          # draw the down box
+Start_Next_One:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t4, NEXT_POSI_U     # $t4 store upper start point
+    add $t4, $t0, $t4       # renew the $t4 as index in graph
+    lw $t5, NEXT_POSI_D     # $t5 store down start point
+    add $t5, $t0, $t5       # renew the $t5 as index in graph
+    
+    jal Random_Color        # take a random color
+    move $s2, $v0           # use $s2 to store up one color
+    jal Random_Color        # take a random color
+    move $s3, $v0           # use $s3 to store down one color
+    
+    move $v0, $zero         # make t0 = 0
+    jal Random_Color
+    sw $v0, -76($sp)        # next 2 up one
+    jal Random_Color
+    sw $v0, -80($sp)        # next 2 down one
+    
+    jal Random_Color
+    sw $v0, -84($sp)        # next 3 up one
+    jal Random_Color
+    sw $v0, -88($sp)        # next 3 down one
+    
+    jal Random_Color
+    sw $v0, -92($sp)        # next 2 up one
+    jal Random_Color
+    sw $v0, -96($sp)        # next 2 up one
+############################################################################# Milestone 1: done
+############################################################################# Milestone 2
+Virus:
+    jal Create_Virus
+Pause:
+    jal Clean_All
+    jal Draw_Edge
+    jal Draw_Stored         # draw
+
+Refresh_screen:             # tiao zheng sudu
+    jal Keyboard
+    jal Count_Score
+    jal O7
+	jal Move_Drop_outline   # get position of outline
+
+	lw $t0, -32($sp)        # take the speed of normal gravity
+	add $s7, $s7, $t0       # each loop add t0 to adjust dropping speed \
+	addi $t0, $s7, -60      # use the t0 = s7 -60
+	bgez $t0, Time_Drop     # if is more than 60, go to time_Drop
+	# not 60, just draw original position 
+Draw_Object:
+    sw $s0, 0($t8)          # draw the up box with stable s0
+    sw $s1, 0($t9)          # draw the down box with stale s1
+    
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t4, NEXT_POSI_U     # $t4 store upper start point
+    add $t4, $t0, $t4       # renew the $t4 as index in graph
+    lw $t5, NEXT_POSI_D     # $t5 store down start point
+    add $t5, $t0, $t5       # renew the $t5 as index in graph
+    sw $s2, 0($t4)          # draw the up box with stable s0
+    sw $s3, 0($t5)          # draw the down box with stale s1
+    
+    addi $t4, $t4, 8
+    addi $t5, $t5, 8
+    lw $t0, -76($sp)
+    sw $t0, 0($t4)
+    lw $t0, -80($sp)
+    sw $t0, 0($t5)
+    
+    addi $t4, $t4, 8
+    addi $t5, $t5, 8
+    lw $t0, -84($sp)
+    sw $t0, 0($t4)
+    lw $t0, -88($sp)
+    sw $t0, 0($t5)
+    
+    addi $t4, $t4, 8
+    addi $t5, $t5, 8
+    lw $t0, -92($sp)
+    sw $t0, 0($t4)
+    lw $t0, -96($sp)
+    sw $t0, 0($t5)
+    
+    jal Draw_Speed_Num
+    jal Draw_Virus_Num
+    # 1s 60 times refresh
+    li 		$v0, 32
+	li 		$a0, 10
+	syscall
+	
+    lw $t0, -36($sp)        # load the total time
+    li $t1, 3530            # 3530 * 17 is 60010, which is nearly 60 s           # can change to 20 to show that the speed come up
+    beq $t0, $t1, Speed_Up  # move speed up if -36sp is add into 3530
+	addi $t0, $t0, 1        # not equal, add 1 for the $sp
+	sw $t0, -36($sp)        # update the -36 sp as time
+    j Refresh_screen
+Speed_Up:
+    sw $zero, -36($sp)      # already 1 mins, make it reset to 0
+    lw $t0, -32($sp)        # load t0 as current speed
+    addi $t0, $t0, 1        # add 1 to t0, speed it up
+    sw $t0, -32($sp)        # load the added speed into -32 $sp
+	j Refresh_screen        # go back
+############################################################################# Exit  
+exit:
+    li $v0, 10              # terminate the program gracefully
+    syscall
+    
+
+################################################################################ get a Random color
+# store a random color in $v0 to use
+Random_Color:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t1, RED             # $t1 = red
+    lw $t2, BLUE            # $t2 = blue
+    lw $t3, YELLOW          # $t3 = yellow
+    li $v0, 00000000        # update the $v0 to 0
+    
+    ################################################### can be a function
+    # take a random a0 to choose what color for the box, return $v0 as color
+    li $v0 , 42
+    li $a0 , 0
+    li $a1 , 3
+    syscall
+    
+    beq $a0, 2, IF_2        # if a0 == 2, jump to IF_2
+    j Not_2                 # jump to Not_2
+IF_2:                       # if == 2
+    move $v0, $t3           # let $v0 yellow
+    j Return_Color          # jump to print part
+Not_2:                      # if not 2, determine is 0 or 1
+    beq $a0, 1, IF_1        # if == 1, jump to IF_1
+    j Is_0                  # not 1, jump to Is_0
+IF_1:                       # if == 1
+    move $v0, $t2           # let $v0 blue
+    j Return_Color          # jump to print part
+Is_0:                       # == 0
+    move $v0, $t1           # let $v0 red
+Return_Color:
+    jr $ra
+################################################################  
+################################################################  Keyboard input
+Keyboard:                           #                                                                                                                                                       $sp -60 for keyboard
+    sw $ra, -60($sp)        # -60 store the ra
+	li 		$v0, 32
+	li 		$a0, 1
+	syscall
+    
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t7, 0($t0)                  # Load first word from keyboard
+    beq $t7, 1, keyboard_input      # If first word 1, key is pressed
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+    
+keyboard_input:                     # A key is pressed
+    jal Clean
+    jal Draw_Stored
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $a0, 4($t0)                  # Load second word from keyboard
+    beq $a0, 0x71, Game_Over             # Check if the key q was pressed
+    beq $a0, 0x61, Move_Left        # Key is a, move left
+    beq $a0, 0x77, Move_Rotate      # Key is w, rotate clockwise
+    beq $a0, 0x73, Move_Drop_1      # Key is s, drop
+    beq $a0, 0x64, Move_Right       # Key is d, move right
+    beq $a0, 0x70, Game_Stop        # Key is p, stop the game 
+    
+    li $v0, 1                       # ask system to print $a0
+    syscall
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                          # here ra is Keyboard's address, no call of jal keyboard-input, jr ra is finish the input
+
+## collision################################# Move left
+Move_Left:
+    lw $t3, BLACK           # load $t3 as black
+    addi $t0, $t8, -4       # $t0 index of $t8 left 
+    beq $t0, $t9, LeftL_9_R_8   # if $t8 left is $t9, jump to left9, Right 8
+    addi $t0, $t8, 4        # $t0 index of $t8 right
+    beq $t0, $t9, LeftL_8_R_9   # if $t8 right is $t9, jump to right9, left 8
+    # $t8 and $t9 up and down
+    j Left_UD
+    
+LeftL_9_R_8:                # Use $t9 to determine wether move or not
+    addi $t2, $t9, -4       # $t2 index of $t9 left
+    lw $t1, 0($t2)          # load color in $t9's left
+    beq $t1, $t3, Move_L_1  # only if left one is black, do the index move left
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+LeftL_8_R_9:
+    addi $t2, $t8, -4       # $t2 index of $t8 left
+    lw $t1, 0($t2)          # load color in $t8's left
+    beq $t1, $t3, Move_L_1  # if left is black, do the index move left
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+Left_UD:
+    addi $t0, $t8, -4       # $t0 index of $t8 left 
+    addi $t1, $t9, -4       # $t1 index of $t9 left 
+    lw $t2, 0($t0)          # $t2 take $t8 left color
+    lw $t4, 0($t1)          # $t4 take $t9 left color
+    beq $t2, $t3, Left_UD_NEXT  # if $t8 left is black, check $t9 
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, return
+Left_UD_NEXT:
+    beq $t4, $t3, Move_L_1  # if $t9 left is also black, move
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+Move_L_1:
+    sw $t3, 0($t8)          # draw the original point as black
+    sw $t3, 0($t9)          # draw the original point as black
+    addi $t8, $t8, -4       # move upper one left
+    addi $t9, $t9, -4       # move down one left
+    sw $s0, 0($t8)          # draw the original point as black
+    sw $s1, 0($t9)          # draw the original point as black
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # return to game
+##############################################
+Move_Rotate:
+    lw $t4, BLACK
+    addi $t0, $t8, 4        # store if $t9 is right side of $t8
+    addi $t1, $t8, 128      # store if $t9 is down side of $t8
+    addi $t2, $t8, -4       # store if $t9 is left side of $t8
+    addi $t3, $t8, -128     # store if $t9 is top side of $t8
+    beq $t9, $t0, Rotate_To_Down # $t9 from right move to down
+    beq $t9, $t1, Rotate_To_Left # $t9 from Down move to left
+    beq $t9, $t2, Rotate_To_Up   # $t9 from left move to Up
+    beq $t9, $t3, Rotate_To_Right# $t9 from Up move to right
+    
+Rotate_To_Down:
+    lw $t5, 0($t1)          # load color down of $t8 in $t5
+    beq $t5, $t4, Rotate_To_Down_Y  # if the down one is black, can rotate
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, cannot rotate
+Rotate_To_Down_Y:
+    sw $t4, 0($t9)          # clean the original place
+    addi $t9, $t8, 128      # move $t9 to down
+    sw $s0, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+    
+Rotate_To_Left:
+    lw $t5, 0($t2)          # load color left of $t8 in $t2
+    beq $t5, $t4, Rotate_To_Left_Y  # if the left one is black, can rotate
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, cannot rotate
+Rotate_To_Left_Y:
+    sw $t4, 0($t9)          # clean the original place
+    addi $t9, $t8, -4       # move $t9 to left
+    sw $s0, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+    
+Rotate_To_Up:
+    lw $t5, 0($t3)          # load color up of $t8 in $t5
+    beq $t5, $t4, Rotate_To_Up_Y  # if the up one is black, can rotate
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, cannot rotate
+Rotate_To_Up_Y:
+    sw $t4, 0($t9)          # draw the new place
+    addi $t9, $t8, -128     # move $t9 to top
+    sw $s0, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+    
+Rotate_To_Right:
+    lw $t5, 0($t0)          # load color right of $t8 in $t2
+    beq $t5, $t4, Rotate_To_Right_Y  # if the right one is black, can rotate
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, cannot rotate
+Rotate_To_Right_Y:
+    sw $t4, 0($t9)          # draw the new place
+    addi $t9, $t8, 4        # move $t9 to right
+    sw $s0, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+    
+########################################### Move Right
+Move_Right:
+    lw $t3, BLACK           # load $t3 as black
+    addi $t0, $t8, -4       # $t0 index of $t8 left 
+    beq $t0, $t9, RightL_9_R_8   # if $t8 left is $t9, jump to left9, Right 8
+    addi $t0, $t8, 4        # $t0 index of $t8 right
+    beq $t0, $t9, RightL_8_R_9   # if $t8 right is $t9, jump to right9, left 8
+    # $t8 and $t9 up and down
+    j  Right_UD
+
+RightL_9_R_8:               # Use $t9 to determine wether move or not
+    addi $t2, $t8, 4        # $t2 index of $t8 right
+    lw $t1, 0($t2)          # load color in $t8's right
+    beq $t1, $t3, Move_R_1  # only if right one is black, do the index move left
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+RightL_8_R_9:
+    addi $t2, $t9, 4        # $t2 index of $t8 left
+    lw $t1, 0($t2)          # load color in $t8's left
+    beq $t1, $t3, Move_R_1  # if left is black, do the index move left
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+Right_UD:
+    addi $t0, $t8, 4        # $t0 index of $t8 right 
+    addi $t1, $t9, 4        # $t1 index of $t9 right 
+    lw $t2, 0($t0)          # $t2 take $t8 right color
+    lw $t4, 0($t1)          # $t4 take $t9 right color
+    beq $t2, $t3, Right_UD_NEXT  # if $t8 right is black, check $t9 
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # not black, return
+Right_UD_NEXT:
+    beq $t4, $t3, Move_R_1  # if $t9 right is also black, move
+    lw $ra, -60($sp)                # store the ra
+    jr $ra
+Move_R_1:
+    sw $t3, 0($t8)          # draw the new place
+    sw $t3, 0($t9)          # draw the new place
+    addi $t8, $t8, 4        # move upper one right
+    addi $t9, $t9, 4        # move down one right
+    sw $s0, 0($t8)          # draw the new place
+    sw $s1, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra               
+################### Drop code, pan duan bu fen          # After Drop, directly go to next, same as  Time_Drop_Stop --- jr $ra
+Move_Drop_1:
+    lw $t5, BLACK           # load $t5 as black
+    lw $t6, WHITE           # load $t6 is white
+    # make original position place be black
+    sw $t5, 0($t8)
+    sw $t5, 0($t9)
+    #
+    addi $t4, $t8, 4        # check $8's right one
+    beq $t4, $t9, Side_by_side_1   # side by side two box, $t8 left
+    addi $t4, $t8, -4       # check $8's left one
+    beq $t4, $t9, Side_by_side_1   # side by side two box, $t8 right
+    addi $t4, $t8, 128      # check $8's down one
+    beq $t4, $t9, Down_9_1     # $t9 is down
+    addi $t4, $t8, -128     # check $8's up one
+    beq $t4, $t9, Down_8_1     # $t8 is down
+Side_by_side_1:
+    addi $t0, $t8, 128      # down position of $t8
+    addi $t1, $t9, 128      # down position of $t9
+    lw $t2, 0($t0)          # load color down of position $t8
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t2, $t5, IF_8_down_black_1 # if  color under $t8 is black
+    beq $t2, $t6, IF_8_down_black_1 # if  color under $t8 is black
+    j Time_Drop_Stop        # 
+IF_8_down_black_1:
+    beq $t3, $t5, Bot_both_black_1  # if color under $t8, $t9 are black
+    beq $t3, $t6, Bot_both_black_1  # if color under $t8, $t9 are black or white
+    j Time_Drop_Stop
+Bot_both_black_1:
+    sw $t5, 0($t8)          # draw the new place
+    sw $t5, 0($t9)          # draw the new place
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    sw $s0, 0($t8)          # draw the new place
+    sw $s1, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # do just once
+
+Down_9_1:
+    addi $t1, $t9, 128      # down position of $t9
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t3, $t5, Down_9_drop_1 # color under $t9 is black, drop
+    beq $t3, $t6, Down_9_drop_1 # color under $t9 is white, drop
+    j Time_Drop_Stop        # down one is not black, check
+Down_9_drop_1:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    sw $s0, 0($t8)          # draw the new place
+    sw $s1, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # do once only
+    
+Down_8_1:
+    addi $t0, $t8, 128      # down position of $t8
+    lw $t2, 0($t0)          # load color down of position $t8
+    beq $t2, $t5, Down_8_drop_1 # color under $t9 is black\
+    beq $t2, $t6, Down_8_drop_1 # color under $t9 is white\
+    j Time_Drop_Stop
+Down_8_drop_1:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    sw $s0, 0($t8)          # draw the new place
+    sw $s1, 0($t9)          # draw the new place
+    lw $ra, -60($sp)                # store the ra
+    jr $ra                  # do once only
+###########################################################
+###########################################################
+########################################################### Move drop to bot
+Move_Drop:
+    lw $t5, BLACK           # load $t5 as black
+    lw $t6, WHITE           # load $t6, white
+    # make original position place be black
+    sw $t5, 0($t8)
+    sw $t5, 0($t9)
+    #
+    addi $t4, $t8, 4        # check $8's right one
+    beq $t4, $t9, Side_by_side   # side by side two box, $t8 left
+    addi $t4, $t8, -4       # check $8's left one
+    beq $t4, $t9, Side_by_side   # side by side two box, $t8 right
+    addi $t4, $t8, 128      # check $8's down one
+    beq $t4, $t9, Down_9     # $t9 is down
+    addi $t4, $t8, -128     # check $8's up one
+    beq $t4, $t9, Down_8     # $t8 is down
+Side_by_side:
+    addi $t0, $t8, 128      # down position of $t8
+    addi $t1, $t9, 128      # down position of $t9
+    lw $t2, 0($t0)          # load color down of position $t8
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t2, $t5, IF_8_down_black # if  color under $t8 is black
+    beq $t2, $t6, IF_8_down_black # if  color under $t8 is white
+    j Time_Drop_Stop
+IF_8_down_black:
+    beq $t3, $t5, Bot_both_black  # if color under $t8, $t9 are black
+    beq $t3, $t6, Bot_both_black  # if color under $t8, $t9 are white
+    j Time_Drop_Stop
+Bot_both_black:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    sw $s0, 0($t8)          # draw the new place
+    sw $s1, 0($t9)          # draw the new place
+    j Side_by_side
+
+Down_9:
+    addi $t1, $t9, 128      # down position of $t9
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t3, $t5, Down_9_drop # color under $t9 is black\
+    beq $t3, $t6, Down_9_drop # color under $t9 is white
+    j Time_Drop_Stop
+Down_9_drop:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    j Down_9
+    
+Down_8:
+    addi $t0, $t8, 128      # down position of $t8
+    lw $t2, 0($t0)          # load color down of position $t8
+    beq $t2, $t5, Down_8_drop # color under $t9 is black\
+    beq $t2, $t6, Down_8_drop # color under $t9 is white
+    j Time_Drop_Stop
+Down_8_drop:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    j Down_8
+#################################################################
+Clean:                              # to clean the screen
+    lw $t0, ADDR_DSPL               # load to as original
+    li $t1, 00000000                # set t1 as black
+    addi $t2, $t0, 4096             # get the right bottom box
+Start_clean:
+    beq $t0, $t2, End_Clean         # get to t1, then end clean
+    j Clean_Update                  # jump to clean update 
+Clean_Update:
+    lw $t3, 0($t0)                  # check the color
+    beq $t3, 0x808080, Clean_Next   # if color is gray, do nothing
+    sw $t1, 0($t0)
+Clean_Next:
+    addi $t0, $t0, 4
+    j Start_clean
+End_Clean:
+    jr $ra
+#################################################################    
+Clean_All:                              # to clean the screen
+    lw $t0, ADDR_DSPL               # load to as original
+    li $t1, 00000000                # set t1 as black
+    addi $t2, $t0, 4096             # get the right bottom box
+Start_clean_All:
+    beq $t0, $t2, End_Clean_All     # get to t1, then end clean
+    j Clean_Update_All              # jump to clean update 
+Clean_Update_All:
+    sw $t1, 0($t0)
+    addi $t0, $t0, 4
+    j Start_clean_All
+End_Clean_All:
+    jr $ra
+#################################################################
+Draw_Edge:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    li $t1, 0x808080        # $t1 = gray, edge
+    lw $t2, LEFT_BOT        # load original index of left bottom 3848
+    add $t2, $t0, $t2       # transfer $t2 into final position of BOT LFTE
+    lw $t4 RIGHT_BOT        # load final right
+    add $t4, $t0, $t4       # transfer $t4 into final position of BOT RIGHT
+    lw $t5 LEFT_TOP         # load final left top
+    add $t5, $t0, $t5       # transfer $t5 into final position of left top
+    lw $t6 RIGHT_TOP        # load final right top
+    add $t6, $t0, $t6       # transfer $t6 into final position of right top
+    add $t3, $zero, $t2     # original t3 is the row index
+    sw $t1, 0($t3)          # paint the first unit on the second row blue
+BotRow:
+    beq $t3, $t4, BackBotL  # get to 3912 to draw 16 box
+    addi $t3, $t3, 4        # everytime add 4 to get next
+    sw $t1, 0($t3)          # store into that place
+    j BotRow
+BackBotL:
+    add $t3, $zero, $t2     # reset $t3 is left bot position
+    
+ColumnL:
+    beq $t3, $t5, BackBotR  # get to 648 to draw horizon left edge
+    addi $t3, $t3, -128     # everytime minus 128 to get next upper box
+    sw $t1, 0($t3)          # store into that place
+    j ColumnL
+BackBotR:
+    add $t3, $zero, $t4     # reset $t3 is right bot position
+    
+ColumnR:
+    beq $t3, $t6, BackTopL  # get to 720 to draw horizon right edge
+    addi $t3, $t3, -128     # everytime minus 128 to get next upper box
+    sw $t1, 0($t3)          # store into that place
+    j ColumnR
+BackTopL:
+    add $t3, $zero, $t5     # reset $t3 is left top position
+
+    # Here , $t4 RIGHT_BOT is not used anymore, so use $t4 to store TOP_C_R
+    lw $t7 TOP_C_L          # load final left top corner
+    add $t7, $t0, $t7       # transfer $t7 into final position of top left corner
+    lw $t4 TOP_C_R          # load final right top corner
+    add $t4, $t0, $t4       # transfer $t4 into final position of top right corner
+TopL_C:
+    beq $t3, $t7, BackTopR  # get to 672 to draw horizon right edge
+    addi $t3, $t3, 4        # everytime + 4 to get next right one box
+    sw $t1, 0($t3)          # store into that place
+    j TopL_C
+BackTopR:
+    add $t3, $zero, $t6     # reset $t3 is right top position
+    
+TopR_C:
+    beq $t3, $t4, BackL_C   # get to 672 to draw horizon right edge
+    addi $t3, $t3, -4      # everytime - 4 to get next left one box
+    sw $t1, 0($t3)          # store into that place
+    j TopR_C
+BackL_C:
+    add $t3, $zero, $t7     # reset $t3 to left top corner
+    lw $t2, TOP_T_L         # load original index of left top top 416
+    add $t2, $t0, $t2       # transfer $t2 into final position of BOT LFTE
+TopL_T:
+    beq $t3, $t2, BackR_C   # get to 672 to draw horizon right edge
+    addi $t3, $t3, -128     # everytime -128 to get next up one box
+    sw $t1, 0($t3)          # store into that place
+    j TopL_T
+BackR_C:
+    add $t3, $zero, $t4     # reset $t3 to left top corner
+    lw $t2, TOP_T_R         # load original index of left top top 416
+    add $t2, $t0, $t2       # transfer $t2 into final position of BOT LFTE
+TopR_T:
+    beq $t3, $t2, FinishEdge    # get to 672 to draw horizon right edge
+    addi $t3, $t3, -128     # everytime -128 to get next up one box
+    sw $t1, 0($t3)          # store into that place
+    j TopR_T
+FinishEdge:
+    # if call draw_edge
+    jr $ra
+
+########################################################################
+Time_Drop:          # 3 cases, up down, left & right
+    lw $t0, BLACK
+    sw $t0, 0($t8)
+    sw $t0, 0($t9)
+    jal O7                  # draw right bot face
+    jal Draw_Stored         # draw
+    lw $t3, BLACK           # load t3 as black
+    lw $t4, WHITE           # load t4 as white
+    addi $t0, $t8, 128      # check t8 down 
+    addi $t1, $t8, -128     # check t8 up
+    beq $t0, $t9, Time_9D8U # check if t9 is at t8 down
+    beq $t1, $t9, Time_8D9U # check if t8 down, t9 up
+    j Time_89tie            # jump to check tie situation that check both down one is black
+Time_9D8U:
+    addi $t0, $t9, 128      # get down box of t9, index
+    lw $t1, 0($t0)          # get t0's color
+    beq $t1, $t3, Time_Drop_Reset   # jump to add the index down 1 and reset $s7 to 0
+    beq $t1, $t4, Time_Drop_Reset   # jump to add the index down 1 and reset $s7 to 0, if the next one is white, also drop
+    j Time_Drop_Stop
+Time_8D9U:
+    addi $t0, $t8, 128      # get next box of t8, index
+    lw $t1, 0($t0)          # get t0's color
+    beq $t1, $t3, Time_Drop_Reset   # jump to add the index down 1 and reset $s7 to 0
+    beq $t1, $t4, Time_Drop_Reset   # jump to add the index down 1 and reset $s7 to 0, if the next one is white, also drop
+    j Time_Drop_Stop
+Time_89tie:
+    addi $t0, $t8, 128      # get next box of t8, index
+    lw $t1, 0($t0)          # get t0's color
+    beq $t1, $t3, Time_89tie_9   # check t9 down one is black or not
+    beq $t1, $t4, Time_89tie_9   # check t9 down one is white or not
+    j Time_Drop_Stop
+Time_89tie_9:
+    addi $t0, $t9, 128      # get next box of t9, index
+    lw $t1, 0($t0)          # get t0's color
+    beq $t1, $t3, Time_Drop_Reset   # jump to add the index down 1 and reset $s7 to 0
+    beq $t1, $t4, Time_Drop_Reset   # check t9 down one is white or not
+    j Time_Drop_Stop
+Time_Drop_Reset:
+    addi $t8, $t8, 128      # $t8 drop down 1
+    addi $t9, $t9, 128      # $t9 drop down 1
+    sw $s0, 0($t8)          # draw the new one
+    sw $s1, 0($t9)
+    add $s7, $zero, $zero   # reset s7 to zero
+    j Draw_Object
+####################Normal Time Drop
+####################
+Time_Drop_Stop:             # case that down one is not black, do not drop , also the case that it stop at that place, use in S to drop, also add the function of eliminate the 4
+                            # With graph here , as just determine whether down one is black or not
+# store the $t8 and $t9 with its color in Stack ################################################################################## STACK
+# index -- color /8
+    sw $s0, 0($t8)
+    sw $s1, 0($t9)
+    #                       store in the stack
+    sw $t8, 0($s4)          # store t8 in s4
+    addi $s4, $s4, -4       # move s4 to next
+    sw $s0, 0($s4)          # store t8's color in s4 - 4
+    addi $s4, $s4, -4       # move s4 to next
+    sw $t9, 0($s4)          # store t9 in s4
+    addi $s4, $s4, -4       # move s4 to next
+    sw $s1, 0($s4)          # store t9's color in s4 - 4
+    addi $s4, $s4, -4       # move s4 to next
+    # eliminate 4 or more
+    jal Eliminate_4         # jump to lind Eliminate_4
+    ###############
+    j Update_Start_one      # get into next two object redo the new
+Update_Start_one:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t8, START_POSI_U    # $t4 store upper start point
+    add $t8, $t0, $t8       # renew the $t4 as index in graph
+    lw $t9, START_POSI_D    # $t5 store down start point
+    add $t9, $t0, $t9       # renew the $t5 as index in graph
+    
+    move $s0, $s2           # use $s0 to store up one color
+    move $s1, $s3           # use $s1 to store down one color
+    
+    lw $t0, -76($sp)
+    lw $t1, -80($sp)
+    move $s2, $t0
+    move $s3, $t1
+    
+    lw $t0, -84($sp)
+    lw $t1, -88($sp)
+    sw $t0, -76($sp)
+    sw $t1, -80($sp)
+    
+    lw $t0, -92($sp)
+    lw $t1, -96($sp)
+    sw $t0, -84($sp)
+    sw $t1, -88($sp)
+    
+    j Next_One
+
+Next_One:
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    lw $t4, NEXT_POSI_U     # $t4 store upper start point
+    add $t4, $t0, $t4       # renew the $t4 as index in graph
+    lw $t5, NEXT_POSI_D     # $t5 store down start point
+    add $t5, $t0, $t5       # renew the $t5 as index in graph
+    sw $ra, 0($sp)          # load return to game loop address in $sp
+    #jal Random_Color        # take a random color
+    #move $s2, $v0           # use $s2 to store up one color
+    #jal Random_Color        # take a random color
+    #move $s3, $v0           # use $s3 to store down one color
+    
+    #                                                                                                                                                           $sp -76 --- -96 next 2 to 4 color
+    #move $v0, $zero         # make t0 = 0
+    #jal Random_Color
+    #sw $v0, -76($sp)        # next 2 up one
+    #jal Random_Color
+    #sw $v0, -80($sp)        # next 2 down one
+    #
+    #jal Random_Color
+    #sw $v0, -84($sp)        # next 3 up one
+    #jal Random_Color
+    #sw $v0, -88($sp)        # next 3 down one
+    #
+    jal Random_Color
+    sw $v0, -92($sp)        # next 2 up one
+    jal Random_Color
+    sw $v0, -96($sp)        # next 2 up one
+    
+    add $s7, $zero, $zero   # reset $s7 to 0
+    jal Check_Top_Full      # Check if top are full before next one appear first check last graph is fit, check first than draw the next one
+    
+    j Draw_Object                  # return to game 
+#################################################################################### Can Draw the stored boxes
+Draw_Stored:
+    lw $t0, ADDR_EXIST_BOX_STACK    # load the first address of stack   ---index##########store virus
+    move $t2, $s5           # make t2 == s5          ---index with virus
+Draw_Stored_check:
+    addi $t3, $t2, -4       # t3 as next stack of t2 ---color
+    bne $t2, $s4, Draw_Stored_step # if t2 != s4, right now stack, then do the draw
+    jr $ra
+Draw_Stored_step:
+    lw $t0, 0($t2)          # load index from $t2 to t0
+    beq $t0, $zero, Draw_Stored_Next  # index is zero, jump to next
+    lw $t1, 0($t3)          # load color from $t3 to t1
+    sw $t1, 0($t0)          # draw the color to index
+Draw_Stored_Next:
+    addi $t2, $t2, -8       # jump to next (index, color) 8 bits, tuple
+    j Draw_Stored_check
+################################################################################### Check if full
+Check_Top_Full:             # If it looks full at loop k, need to check it really full at next k+1
+    lw $t6, BLACK           # load t6 as black
+    lw $t0, ADDR_TOP_MID    # the index of mid top 
+    addi $t1, $t0, -132     # left of top
+    addi $t2, $t0, 132      # right of top
+    addi $t7, $t0, -256     # index of down one of dropping
+    lw $t3, 0($t7)          # first check if object can exist 
+    bne $t3, $t6, Game_Over # if that one is not black, means is full, jump to Game over
+    lw $t3, 0($t0)          # load color in mid top
+    beq $t3, $t6, Check_Top_Return      # if mid top is black, return
+    lw $t4, 0($t1)          # load color in left top
+    beq $t4, $t6, Check_Top_Return      # if left top black, return
+    lw $t5, 0($t2)          # load color in right top
+    beq $t5, $t6, Check_Top_Return      # if right top black, return 
+
+    j Game_Over             # if three are all not black, Game over  ###########can be changed into other, like game over...#$$$$$$$$$$$$$$$$$$$$$$
+Check_Top_Return:           # still continous
+    jr $ra                  # not full, return to game
+####################################################################################
+####################################################################################Check just dropped index to eliminate 4 or more
+Eliminate_4:        # t8; t9       a1--color a2--t8 or t9 index; a3--deleted address                                                                                ra:0
+    sw $ra, 0($sp)          # store ra address to return calling E_4
+    sw $t8, -20($sp)
+    sw $t9, -24($sp)                                                                                                                                                # t8: -20------------ t9: -24 $sp
+    lw $a2, -20($sp)        # a2 = t8 index
+    move $a1, $s0           # a1 = s0 color
+    jal E_Method
+    move $t6, $v0           # t6 = v0 as whether use gravity or not
+    lw $a2, -24($sp)        # a2 = t9 index
+    move $a1, $s1           # a1 = s1 color
+    jal E_Method
+    bne $t6, $zero, E_Deleted   # if t6 not zero, is 1, t8 show that deleted
+    bne $v0, $zero, E_Deleted   # if t6 is 0, v0 != 0: t9 deleted
+    # t8, t9 all not deleted, go to next object
+    lw $ra, 0($sp)          # load ra as E_4's return
+    jr $ra                  # return to next object one
+E_Deleted:
+    jal O7_2                # if v0 is 1, draw O7_2
+    jal Gravity             # do gravity after some 4th deleted
+    jal Check_Next_E        # check after gravity, from right bot to left top, if there is any 4. if yes, v0 = 1, gravity again; no, v0 = 0, Eliminate_4 ra
+    beq $v0, $zero, E_Return   # if v0 if zero, return to next object
+    j E_Deleted             # if v0 is 1, which means it deleted some 4th in this term check, use gravity to check next stable one
+E_Return:
+    jal Clean
+    jal Draw_Stored
+    jal O7_2
+    lw $ra, 0($sp)          # load ra as E_4's return
+    jr $ra                  # return to next object one
+########################################################E_Method: used to delete the input t0,1,2,4,5, a1,2,3
+E_Method:# a2 as t8 or t9 or other index which might drop down, a1 is it's corespond color
+    add $v0, $zero, $zero   # load v0 as 0 each time
+    sw $ra, -4($sp)         # store the E_Method ra                                                                                                                 ra:-4
+E_Row:
+    add $t4, $zero, $zero   # t4 for left, start with 0
+    add $t5, $zero, $zero   # t5 for right, start with 0
+    
+    addi $t0, $a2, -4       # check left one  t0 as index
+    addi $t1, $a2, 4        # check right one  t1 as index
+E_Left:
+    lw $t2, 0($t0)          # take color in t0
+    bne $t2, $a1, E_Right   # left one is not same color, check right
+    addi $t4, $t4, 1        # same, add 1 to left t4
+    addi $t0, $t0, -4       # same--move to left
+    j E_Left                # check next left one
+E_Right:
+    lw $t2, 0($t1)          # take color in t1
+    bne $t2, $a1, E_Row_Total     # right one is not same color, check in row
+    addi $t5, $t5, 1        # same color, add 1 to right t5
+    addi $t1, $t1, 4        # same color--move to right
+    j E_Right               # check next right one
+    # finish using t0, t1
+E_Row_Total:
+    add $t0, $t4, $t5       # add left + right
+    addi $t1, $t0, -3       # t1 = t0 - 3
+    bltz $t1, E_Column      # if t1 < 0, go to check column
+    # Case t1 >= 0, which means there are more than 4 in a row
+    addi $v0, $zero, 1      # more than 4, which need to delete, set v0 == 1
+    move $t2, $a2           # t0 as index go delete left address
+    move $t3, $a2           # t1 as index go delete right address
+    move $a3, $a2           # call function to delete dropped one, which already sure that row is more than 4
+    jal Stack_Delete        # Delete that address with color in stack
+E_Row_Delete_Left:
+    beq $t4, $zero, E_Row_Delete_Right   # if t4 is 0, jump to delete Right side
+    addi $t2, $t2, -4       # move left 
+    move $a3, $t2           # make a3 as t0 to go to delete function
+    jal Stack_Delete        # Delete that address with color in stack
+    addi $t4, $t4, -1       # -1 in loop, already check 1
+    j E_Row_Delete_Left
+E_Row_Delete_Right:
+    beq $t5, $zero, E_Column   # if t5 is 0, jump to E_Column
+    addi $t3, $t3, 4        # move left 
+    move $a3, $t3           # make a3 as t1 to go to delete function
+    jal Stack_Delete        # Delete that address with color in stack
+    addi $t5, $t5, -1       # -1 in loop, already check 1
+    j E_Row_Delete_Right
+################################
+E_Column:
+    add $t4, $zero, $zero   # t4 for up, start with 0
+    add $t5, $zero, $zero   # t5 for down, start with 0
+    
+    addi $t0, $a2, -128       # check left one  t0 as index
+    addi $t1, $a2, 128        # check right one  t1 as index
+E_Up:
+    lw $t2, 0($t0)          # take color in t0
+    bne $t2, $a1, E_Down    # up one is not same color, check down
+    addi $t4, $t4, 1        # same, add 1 to up t4
+    addi $t0, $t0, -128     # same--move to up
+    j E_Up                  # check next up one
+E_Down:
+    lw $t2, 0($t1)          # take color in t1
+    bne $t2, $a1, E_Column_Total     # down one is not same color, check in Column
+    addi $t5, $t5, 1        # same color, add 1 to down t5
+    addi $t1, $t1, 128      # same color--move to down
+    j E_Down                # check next down one
+    # finish using t0, t1
+E_Column_Total:
+    add $t0, $t4, $t5       # add up + down
+    addi $t1, $t0, -3       # t1 = t0 - 3
+    bltz $t1, E_Finish      # if t1 < 0, go to finish check 
+    # Case t1 >= 0, which means there are more than 4 in column
+    addi $v0, $zero, 1      # more than 4, which need to delete, set v0 == 1
+    move $t2, $a2           # t0 as index go delete up address
+    move $t3, $a2           # t1 as index go delete down address
+    move $a3, $a2           # call function to delete dropped one, which already sure that row is more than 4
+    jal Stack_Delete        # Delete that address with color in stack
+E_Column_Delete_Up:
+    beq $t4, $zero, E_Column_Delete_Down   # if t4 is 0, jump to delete down side
+    addi $t2, $t2, -128     # move up 
+    move $a3, $t2           # make a3 as t0 to go to delete function
+    jal Stack_Delete        # Delete that address with color in stack
+    addi $t4, $t4, -1       # -1 in loop, already check 1
+    j E_Column_Delete_Up
+E_Column_Delete_Down:
+    beq $t5, $zero, E_Finish   # if t5 is 0, jump to E_Finish, to do the gravity because it delete something
+    addi $t3, $t3, 128      # move down 
+    move $a3, $t3           # make a3 as t1 to go to delete function
+    jal Stack_Delete        # Delete that address with color in stack
+    addi $t5, $t5, -1       # -1 in loop, already check 1
+    j E_Column_Delete_Down
+E_Finish:
+    lw $ra, -4($sp)         # store ra as E_Method return address
+    jr $ra
+    
+    
+###################################################################################### Used to delete stack in eliminate
+# a3 is deleted address
+Stack_Delete:
+    move $t0, $s5            # t0 is address used to search from first stack that if the store one is equal to address, start at s5
+Stack_Delete_Loop:
+    beq $t0, $s4, Stack_Not_Found # not find the same address
+    lw $t1, 0($t0)          # take the t1 from address t0, should be an index
+    beq $t1, $a3, Stack_Delete_Do # find the address of t1 and a3 is same
+    addi $t0, $t0, -8       # not the same address, search for next one 
+    j Stack_Delete_Loop
+Stack_Delete_Do:
+    sw $zero, 0($t0)        # store the zero in that stack
+    sw $zero, -4($t0)       # store it's corespond color with 0, is -4
+    lw $t0, -56($sp)        # take t0 as number block disappear
+    addi $t0, $t0, 1        # t0 = t0 + 1
+    sw $t0, -56($sp)        # store it back
+    
+    jr $ra                  # go back to original place
+Stack_Not_Found:
+    jr $ra                  # usually not happened
+###################################################################################### Used to delete stack in eliminate
+# a2 is replaced address; a3 is deleted address
+Stack_Replace:
+    lw $t0, ADDR_EXIST_BOX_STACK # t0 is address used to search from stack that if the store one is equal to address, not include virus
+Stack_Replace_Loop:
+    beq $t0, $s4, Stack_RP_Not_Found # not find the same address
+    lw $t1, 0($t0)          # take the t1 from address t0, should be an index
+    beq $t1, $a3, Stack_Replace_Do # find the address of t1 and a3 is same
+    addi $t0, $t0, -8       # not the same address, search for next one 
+    j Stack_Replace_Loop
+Stack_Replace_Do:
+    sw $a2, 0($t0)          # store the replaced address in that stack
+    jr $ra                  # go back to original place
+Stack_RP_Not_Found:
+    jr $ra                  # usually for virus
+################################################################################### Gravity
+# Doing this, s0 and s1 are useless
+Gravity:                    # use t8, t9 to do the loop of gravity                                                                                                  ra:-12
+    sw $ra, -12($sp)        # store the Gravity ra
+    jal Clean
+    jal Draw_Stored
+    jal O7_2
+    li $v0, 32   # syscall 32 = sleep
+    li $a0, 200  
+    syscall      
+    
+    addi $t8, $zero, 14     # t8 as 14 columns
+    addi $t9, $zero, 23     # t9 as 23 rows
+    lw $t0, ADDR_DSPL       # original print point
+    addi $s1, $t0, 3780     # right bot index
+    move $s0, $s1           # initialize t5 as t4
+Gravity_Whole:
+Gravity_Column:
+    beq $t8, $zero, Gravity_Next_Row    # t8 equal to 0 move to next row
+    jal Clean               #####
+    jal Draw_Stored         # print the graph after the delete to do gravity for each block
+    jal O7_2
+    lw $t3, 0($s0)          # take color in $t5
+    lw $t0, BLACK           # t0 is black
+    bne $t3, $t0, Gravity_Do  # is color is not black, do the gravity
+    addi $t8, $t8, -1       # if color is black, move to check left column
+    addi $s0, $s0, -4       # also move the index left 
+    j Gravity_Column
+Gravity_Do:
+    move $a0, $s0           # let a0 = t5 as input index
+    jal Gravity_1_block
+    addi $t8, $t8, -1       # down that index, move to check left column
+    addi $s0, $s0, -4       # also move the index left 
+    j Gravity_Column
+Gravity_Next_Row:
+    beq $t9, $zero, Gravity_Finish  # when t9 == 0, finish all the gravity
+    addi $t8, $zero, 14     # reset t8 as 14 columns
+    addi $t9, $t9, -1       # already do the last row
+    addi $s1, $s1, -128     # most right one upper 1 row
+    move $s0, $s1           # move t5 as new row index
+    j Gravity_Column
+Gravity_Finish: ################################################################# should go to next E_Method
+    lw $ra, -12($sp)        # load Gravity ra address
+    jr $ra
+
+########################
+Gravity_1_block:            # a0 as the index need to drop,                                                                                                             ra:-8
+    sw $ra, -8($sp)
+    lw $t0, BLACK           # t0 is black
+    li $t3, 0x808080        # t3 is gray
+    move $t1, $a0           # move t1 as a0
+    lw $t5, -4($t1)         # get left side color
+#    beq $t5, $t3, Gravity_Check_another     # if left side is gray, check right one
+#    bne $t5, $t0, Gravity_1_return          # if left not gray, and left not black, return (won't drop)
+#    j Gravity_Check_another_Black           # left not gray, but left is black
+#Gravity_Check_another:
+#    sw $t5, 4($t1)          # get right side color
+#    beq $t5, $t0, Gravity_1_block_down          # if left gray, and right is black, down
+#    j Gravity_1_return      # if left gray, right black, stay
+#Gravity_Check_another_Black:
+#    sw $t5, 4($t1)          # get right side color
+#    beq $t5, $t0, Gravity_1_block_down          # if left not gray, and right is black, down
+#    j Gravity_1_return      # if left black, right not black, stay
+Gravity_1_block_down:
+    lw $t2, 128($t1)        # take t2 as t1's down one color
+    bne $t2, $t0, Gravity_1_replace     # down one not black, go to renew address
+    addi $t1, $t1, 128      # take t1 as a0's down one
+    j Gravity_1_block_down  # continuous to drop down
+Gravity_1_replace:
+    move $a2, $t1           # final location for that block a2,a3 for Stack_Replace
+    move $a3, $a0           # original location
+    jal Stack_Replace       # replace the address
+Gravity_1_return:
+    lw $ra, -8($sp)         # load ra as -8 sp
+    jr $ra                  # return to whole gravity
+####################################################################################### Check after gravity, need to delete more 
+# t0,1,2,4,5, a1,2,3 E_Method
+Check_Next_E:               # check after the graphing of gravity, need to do E again
+    # t8,t9,s0,s1 will be update after all check and go to next object
+    add $s6, $zero, $zero   # load v0 as 0 each time: 0--> go back, 1
+    sw $ra, -28($sp)        # store the Gravity ra                                                                                                                      ra = -28
+    addi $t8, $zero, 14     # t8 as 14 columns
+    addi $t9, $zero, 23     # t9 as 23 rows
+    lw $t0, ADDR_DSPL       # original print point
+    addi $s1, $t0, 3780     # right bot index
+    move $s0, $s1           # initialize s0 as s1
+Check_E_Column:
+    beq $t8, $zero, Check_E_Next_Row    # t8 equal to 0 move to next row
+    lw $t3, 0($s0)          # take color in $t3
+    lw $t0, BLACK           # t0 is black
+    bne $t3, $t0, Check_E_Do  # is color is not black, do the 4 block check
+    addi $t8, $t8, -1       # if color is black, move to check left column
+    addi $s0, $s0, -4       # also move the index left 
+    j Check_E_Column
+Check_E_Next_Row:
+    beq $t9, $zero, Check_E_Finish  # when t9 == 0, row to the last one, finish all the check
+    addi $t8, $zero, 14     # reset t8 as 14 columns
+    addi $t9, $t9, -1       # already do the last row
+    addi $s1, $s1, -128     # most right one upper 1 row
+    move $s0, $s1           # move t5 as new row index
+    j Check_E_Column
+Check_E_Do:
+    move $a2, $s0           # the checked index
+    move $a1, $t3           # the checked color, not black here
+    jal E_Method            # check if that index have 4th
+    addi $t8, $t8, -1       # if color is black, move to check left column
+    addi $s0, $s0, -4       # also move the index left 
+    beq $v0, $zero, Check_E_Column # if the return v0 == 0 which means that point dont have 4th
+    move $s6, $v0           # if return v0 == 1, s6 == 1, and be 1 forever in this term of check
+    j Check_E_Column        # check the next block
+Check_E_Finish:
+    move $v0, $s6           # the return value is equal to s6
+    lw $ra, -28($sp)        # get $ra
+    jr $ra                  # go back to E_4
+################################################################################################################################################################################################# Create Virus
+Create_Virus:
+    sw $ra, -16($sp)        # store the ra in SP                                                                                                                        ra= -16
+    lw $t1, -40($sp)        # load the max number of virus                                                                                                              sp -40
+    li $v0 , 42
+    li $a0 , 0
+    move $a1 , $t1         # load a1 as t1, which is number of max virus    
+    syscall
+    # random the number of virus, 2 to 4
+    addi $t1, $t1, -2       # t1 is min of virus in graph, range is t1-2 to t1
+    sub $t0, $a0, $t1       # make t0 = a0 - t1, here a0 is from 0 to -40$sp, 
+    bltz $t0, Create_Virus  # if t0 < 0, random a new a0
+    move $t4, $a0           # t4 is how many virus to draw
+    sw $t4, -40($sp)        # store it back
+Create_Virus_Draw:
+    beq $t4, $zero, Create_Virus_Finish 
+    jal Random_Color        # jump to get new color
+    move $t2, $v0           # move color to t2
+    addi $s5, $s5, 4        # add 4 to store color
+    sw $t2, 0($s5)          # store color first
+    jal Random_Block_In     # jump to get new address
+    move $t1, $v0           # move the index to t1
+    addi $s5, $s5, 4        # add 4 to store index
+    sw $t1, 0($s5)          # store index then 
+    addi $t4, $t4, -1       # draw 1, -1
+    j Create_Virus_Draw
+Create_Virus_Finish:
+    lw $ra, -16($sp)        # load the ra back
+    jr $ra
+Random_Block_In:            # take the position in under 12 row, 
+    lw $t0, ADDR_DSPL
+    addi $t0, $t0, 2060     # go down for 11 rows
+    li $v0 , 42
+    li $a0 , 0
+    li $a1 , 12
+    syscall
+    # random number 0 - 11
+    move $t1, $a0           # move the row in t1
+    
+    li $v0 , 42
+    li $a0 , 0
+    li $a1 , 14
+    syscall
+    # random number 0 - 14
+    move $t2, $a0           # move the list in t2
+
+    mul $t1, $t1, 128       # mult t1 by 128 add per row
+    mul $t2, $t2, 4         # mult t2 bu 4 add per col
+    add $v0, $t0, $t1       # v0 = t0+t1
+    add $v0, $v0, $t2       # v0 = v0 + t2
+    jr $ra
+########################################################################################################################################################
+Keyboard_EMH:                           # houxu fang dao Loop zhong
+	li 		$v0, 32
+	li 		$a0, 1
+	syscall
+
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t7, 0($t0)                  # Load first word from keyboard
+    beq $t7, 1, keyboard_input_EMH   # If first word 1, key is pressed
+    j Keyboard_EMH
+    
+keyboard_input_EMH:                     # A key is pressed
+    lw $a0, 4($t0)                  # Load second word from keyboard
+    beq $a0, 0x71, exit             # Check if the key q was pressed
+    beq $a0, 0x65, Play_Easy        # Key is E, easy
+    beq $a0, 0x6D, Play_Mid         # Key is M, mid
+    beq $a0, 0x68, Play_Hard        # Key is H, hard
+    
+    li $v0, 1                       # ask system to print $a0
+    syscall
+    j Keyboard_EMH
+    
+Play_Easy:
+    addi $t0, $zero, 2     # original speed of droping--2
+	sw $t0, -32($sp)       #                                                                                                                                               $sp -32 is the position about speed, original 2
+	sw $zero, -36($sp)     # to calculate the total time                                                                                                                   $sp -36 is total time to use
+	li $t0, 4              # maximum 3 virus
+	sw $t0, -40($sp)       # store in -40sp                                                                                                                                $sp -40 number of virus max
+	li $t0, 1              # Easy for 1
+	sw $t0, -52($sp)       #                                                                                                                                               $sp -52 power of difficulty
+	jr $ra                 # address of Keyboard_EMH, no other jal
+Play_Mid:
+    addi $t0, $zero, 3     # original speed of droping--3
+	sw $t0, -32($sp)       #                                                                                                                                               $sp -32 is the position about speed, original 2
+	sw $zero, -36($sp)     # to calculate the total time                                                                                                                   $sp -36 is total time to use
+	li $t0, 6              # maximum 3 virus
+	sw $t0, -40($sp)       # store in -40sp                                                                                                                                $sp -40 number of virus max
+	li $t0, 2              # Mid for 2
+	sw $t0, -52($sp)       #                                                                                                                                               $sp -52 power of difficulty
+	jr $ra                 # address of Keyboard_EMH, no other jal
+Play_Hard:
+    addi $t0, $zero, 5     # original speed of droping--5
+	sw $t0, -32($sp)       #                                                                                                                                               $sp -32 is the position about speed, original 2
+	sw $zero, -36($sp)     # to calculate the total time                                                                                                                   $sp -36 is total time to use
+	li $t0, 8              # maximum 3 virus
+	sw $t0, -40($sp)       # store in -40sp  
+	li $t0, 3              # Hard for 3
+	sw $t0, -52($sp)       #                                                                                                                                               $sp -52 power of difficulty
+	jr $ra                 # address of Keyboard_EMH, no other jal
+###################################################################################################### Game over to clean the data and restart
+Game_Over:
+    
+    jal Clean_All
+    jal GG_Retry
+    li $v0, 31        
+    la $a0, GAME_OVER     
+    syscall
+    move $t0, $v0
+    li $v0, 32            # 系统调用编号 32 (play audio)
+    move $a0, $t0         # 传入音频 ID
+    syscall
+    
+    li $a1, 5000       # 3000 毫秒 = 3 秒
+    li $v0, 32         # 继续播放，避免提前退出
+    syscall
+    jal Keyboard_GG
+    j main
+######################################################################################################
+Game_Stop:
+    sw $ra, -44($sp)        # address of return                                                                                                                                  -44 $sp Game stop
+    jal Clean_All
+    jal Game_Stop_PDraw
+Game_Stop_Loop:
+    li 		$v0, 32
+	li 		$a0, 1
+	syscall
+    
+    jal Score_Highest_Output
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t1, 0($t0)                  # Load first word from keyboard
+    beq $t1, 1, keyboard_input_Stop # If first word 1, key is pressed
+    j Game_Stop_Loop
+    
+keyboard_input_Stop:                     # A key is pressed
+    lw $a0, 4($t0)                  # Load second word from keyboard
+    beq $a0, 0x70, End_Stop         # Check if the key p was pressed
+    beq $a0, 0x71, exit             # if key is q, exit
+    
+    j Game_Stop_Loop                # let next input
+End_Stop:
+    j Pause
+########################################################################################################################################################
+Keyboard_GG:                           # houxu fang dao Loop zhong
+	li 		$v0, 32
+	li 		$a0, 1
+	syscall
+
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t7, 0($t0)                  # Load first word from keyboard
+    beq $t7, 1, keyboard_input_GG   # If first word 1, key is pressed
+    j Keyboard_GG
+    
+keyboard_input_GG:                     # A key is pressed
+    lw $a0, 4($t0)                  # Load second word from keyboard
+    beq $a0, 0x71, exit             # Check if the key q was pressed
+    beq $a0, 0x72, Reset_Game       # Key is R, Reset all
+    
+    li $v0, 1                       # ask system to print $a0
+    syscall
+    j Keyboard_GG
+
+Reset_Game:                         # clean all the data
+    move $t0, $s5                   # t0 as the address of sp
+Data_Clean_Loop:
+    bne $t0, $s4, Add_Clean         # clean that address if t0 != $s4
+    # case that t0 is s4
+    move $s7, $zero
+    move $s6, $zero
+    move $s5, $zero
+    move $s4, $zero
+    move $a0, $zero
+    move $a1, $zero
+    sw $zero, -48($sp)
+    sw $zero, -56($sp)
+    
+    jr $ra                          # jump back to Game_Over
+Add_Clean:
+    sw $zero, 0($t0)                # use zero to store in the stack
+    addi $t0, $t0, -4               # move to next one
+    j Data_Clean_Loop
+    
+###############################################################################################################################################################################
+Move_Drop_outline:
+    lw $t5, BLACK           # load $t5 as black
+    move $t6, $t8           # t0 as t8's position
+    move $t7, $t9           # t1 as t9's position
+    addi $t4, $t6, 4        # check $8's right one
+    beq $t4, $t7, Side_by_side_O   # side by side two box, $t8 left
+    addi $t4, $t6, -4       # check $8's left one
+    beq $t4, $t7, Side_by_side_O   # side by side two box, $t8 right
+    addi $t4, $t6, 128      # check $8's down one
+    beq $t4, $t7, Down_9_O     # $t9 is down
+    addi $t4, $t6, -128     # check $8's up one
+    beq $t4, $t7, Down_8_O     # $t8 is down
+Side_by_side_O:
+    lw $t4, WHITE           # load $t5 as black
+    addi $t0, $t6, 128      # down position of $t8
+    addi $t1, $t7, 128      # down position of $t9
+    lw $t2, 0($t0)          # load color down of position $t8
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t2, $t5, IF_8_down_black_O # if  color under $t8 is black
+    beq $t2, $t4, IF_8_down_black_O # if  color under $t8 is black, ignore white
+    move $v0, $t6
+    move $v1, $t7
+    j Draw_Outline          # color is not black: back to draw the outline
+IF_8_down_black_O:
+    beq $t3, $t5, Bot_both_black_O  # if color under $t8, $t9 are black
+    beq $t3, $t4, Bot_both_black_O  # if color under $t8, $t9 are black, ignore white
+    move $v0, $t6
+    move $v1, $t7
+    j Draw_Outline
+Bot_both_black_O:
+    addi $t6, $t6, 128      # $t8 drop down 1
+    addi $t7, $t7, 128      # $t9 drop down 1
+    j Side_by_side_O
+
+Down_9_O:
+    lw $t4, WHITE           # load $t4 as white
+    addi $t1, $t7, 128      # down position of $t9
+    lw $t3, 0($t1)          # load color down of position $t9
+    beq $t3, $t5, Down_9_drop_O # color under $t9 is black\
+    beq $t3, $t4, Down_9_drop_O # color under $t9 is black, ignore white
+    move $v0, $t6
+    move $v1, $t7
+    j Draw_Outline
+Down_9_drop_O:
+    addi $t6, $t6, 128      # $t8 drop down 1
+    addi $t7, $t7, 128      # $t9 drop down 1
+    j Down_9_O
+    
+Down_8_O:
+    lw $t4, WHITE           # load $t4 is white
+    addi $t0, $t6, 128      # down position of $t8
+    lw $t2, 0($t0)          # load color down of position $t8
+    beq $t2, $t5, Down_8_drop_O  # color under $t9 is black\
+    beq $t2, $t4, Down_8_drop_O # color under $t9 is black, ignore white
+    move $v0, $t6
+    move $v1, $t7
+    j Draw_Outline
+Down_8_drop_O:
+    addi $t6, $t6, 128      # $t8 drop down 1
+    addi $t7, $t7, 128      # $t9 drop down 1
+    j Down_8_O
+
+Draw_Outline:
+    lw $t0, WHITE
+    move $t1, $v0           # outline position for $t8
+    move $t2, $v1           # outline position for $t9
+    beq $t1, $t8, Skip_Outline  # if t8==t1, t9 == t2, then skip the outline
+    beq $t2, $t9, Skip_Outline 
+    sw $t0, 0($t1)
+    sw $t0, 0($t2)    
+Skip_Outline:
+    jr $ra
+###############################################################################################################################################################################
+Score_Output:
+    lw $t6, -48($sp)        # take the score now                                                                                                                                $sp -48
+    ble $t6, 999, Draw_Scores   # <=0, draw
+    sw $t6, -48($sp)        #*********************can be changed into like next level, or...
+Draw_Scores:
+    li $t5, 10              # /10 to get remainder
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_First    # draw the first
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_Second   # draw the first
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_Third   # draw the first
+    lw $ra, -64($sp)        # load the return ra
+    jr $ra
+###############################################################################################################################################################################
+Count_Score:
+    sw $ra, -64($sp)        #                                                                                                                                                   $sp -64 return score address
+    lw $t0, ADDR_EXIST_BOX_STACK # left side is virus, right side is normal blocks
+    move $t1, $s5           # lowest address of all store of blocks
+    li $t2, 0               # count how many virus are killed
+Count_Loop:
+    beq $t1, $t0, All_Virus # if t1 == t0, checked all the virus
+    lw $t3, 0($t1)          # load the object of t1 address to t3
+    beq $t3, $zero, Add_Virus # if t3 is zero, then that virus is cleaned
+    addi $t1, $t1, -8       # to check next one
+    j Count_Loop
+Add_Virus:
+    addi $t2, $t2, 1        # add t2 = t2 + 1
+    addi $t1, $t1, -8       # to check next one
+    j Count_Loop
+All_Virus:
+    lw $t4, -56($sp)        # total number of block disappeared.
+    sub $t4, $t4, $t2       # t4 as block not virus cleaned
+    lw $t0, -52($sp)        # difficulty of multiply power
+    mul $t4, $t4, $t0       # t4 is the score for non-virus cleaned
+    mul $t2, $t2, 5         # each virus take 5 scores
+    add $t1, $t4, $t2       # t1 = t4 + t2, get total mark
+    sw $t1, -48($sp)
+    
+    lw $t0, -68($sp)        # highest mark
+    ble $t0, $t1, Switch_Score 
+
+    j Score_Output
+Switch_Score:
+    sw $t1, -68($sp)
+    j Score_Output
+####################################################################################################################################################################
+Score_Highest_Output:
+    sw $ra, -72($sp)        # address of highest
+    lw $t6, -68($sp)        # take the score now                                                                                                                                $sp -68
+Draw_Highest_Scores:
+    li $t5, 10              # /10 to get remainder
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_First    # draw the first
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_Second   # draw the first
+    div $t6, $t5            # divide t5 by 10
+    mflo $t6                # t6 as next one
+    mfhi $a0                # take a0 as variables
+    jal Score_Draw_Third   # draw the first
+    lw $ra, -72($sp)        # load the return ra
+    jr $ra
+###############################################################################################################################################################################
+Draw_Speed_Num:
+    lw $t0, ADDR_DSPL
+    lw $t1, WHITE
+    addi $t0, $t0, 1488     # address start to draw the speed
+    lw $t2, -32($sp)        # $t2 store the number of speed now
+All_Speed_Num:
+    bne $t2, 0, Draw_Speed  # if speed is not 0, draw
+    jr $ra                  # after drawing all, finish
+Draw_Speed:
+    sw $t1, 0($t0)          # draw it as white
+    addi $t0, $t0, 4        # move to right one
+    addi $t2, $t2, -1       # t2 -= 1
+    j All_Speed_Num
+##############################################################################################################################################
+Draw_Virus_Num:
+    lw $t0, ADDR_DSPL
+    lw $t1, RED
+    addi $t0, $t0, 1744     # address start to draw the speed
+    lw $t2, -40($sp)        # $t2 store the number of speed now
+All_Virus_Num:
+    bne $t2, 0, Draw_Num_Virus  # if speed is not 0, draw
+    jr $ra                  # after drawing all, finish
+Draw_Num_Virus:
+    sw $t1, 0($t0)          # draw it as white
+    addi $t0, $t0, 4        # move to right one
+    addi $t2, $t2, -1       # t2 -= 1
+    j All_Virus_Num
+############################################################################################################################################################################### Selection E, M, H
+Diff_Draw:
+    li $t1, 0x00FFFFFF  # white color for drawing
+    lw $t0, ADDR_DSPL # original address
+    # D
+    sw $t1, 520($t0)
+    sw $t1, 524($t0)
+    sw $t1, 648($t0)
+    sw $t1, 776($t0)
+    sw $t1, 904($t0)
+    sw $t1, 1032($t0)
+    sw $t1, 656($t0)
+    sw $t1, 784($t0)
+    sw $t1, 912($t0)
+    sw $t1, 1036($t0)
+    # i
+    sw $t1, 536($t0)
+    sw $t1, 792($t0)
+    sw $t1, 920($t0)
+    sw $t1, 1048($t0)
+    # f
+    sw $t1, 544($t0)
+    sw $t1, 548($t0)
+    sw $t1, 552($t0)
+    sw $t1, 672($t0)
+    sw $t1, 800($t0)
+    sw $t1, 804($t0)
+    sw $t1, 808($t0)
+    sw $t1, 928($t0)
+    sw $t1, 1056($t0)
+    
+    # f
+    sw $t1, 560($t0)
+    sw $t1, 564($t0)
+    sw $t1, 568($t0)
+    sw $t1, 688($t0)
+    sw $t1, 816($t0)
+    sw $t1, 820($t0)
+    sw $t1, 824($t0)
+    sw $t1, 944($t0)
+    sw $t1, 1072($t0)
+Diff_Easy:
+    # E
+    sw $t1, 1288($t0)
+    sw $t1, 1292($t0)
+    sw $t1, 1296($t0)
+    sw $t1, 1416($t0)
+    sw $t1, 1544($t0)
+    sw $t1, 1548($t0)
+    sw $t1, 1552($t0)
+    sw $t1, 1672($t0)
+    sw $t1, 1800($t0)
+    sw $t1, 1804($t0)
+    sw $t1, 1808($t0)
+    
+    # A
+    sw $t1, 1304($t0)
+    sw $t1, 1308($t0)
+    sw $t1, 1312($t0)
+    sw $t1, 1432($t0)
+    sw $t1, 1440($t0)
+    sw $t1, 1560($t0)
+    sw $t1, 1564($t0)
+    sw $t1, 1568($t0)
+    sw $t1, 1688($t0)
+    sw $t1, 1696($t0)
+    sw $t1, 1816($t0)
+    sw $t1, 1824($t0)
+    # S
+    sw $t1, 1320($t0)
+    sw $t1, 1324($t0)
+    sw $t1, 1328($t0)
+    sw $t1, 1448($t0)
+    sw $t1, 1576($t0)
+    sw $t1, 1580($t0)
+    sw $t1, 1584($t0)
+    sw $t1, 1712($t0)
+    sw $t1, 1840($t0)
+    sw $t1, 1836($t0)
+    sw $t1, 1832($t0)
+    # Y
+    sw $t1, 1336($t0)
+    sw $t1, 1464($t0)
+    sw $t1, 1592($t0)
+    sw $t1, 1596($t0)
+    sw $t1, 1600($t0)
+    sw $t1, 1344($t0)
+    sw $t1, 1472($t0)
+    sw $t1, 1724($t0)
+    sw $t1, 1852($t0)
+    # --
+    sw $t1, 1608($t0)
+    sw $t1, 1612($t0)
+    # E
+    sw $t1, 1492($t0)
+    sw $t1, 1364($t0)
+    sw $t1, 1368($t0)
+    sw $t1, 1372($t0)
+    sw $t1, 1620($t0)
+    sw $t1, 1624($t0)
+    sw $t1, 1628($t0)
+    sw $t1, 1748($t0)
+    sw $t1, 1876($t0)
+    sw $t1, 1880($t0)
+    sw $t1, 1884($t0)
+Diff_Mid:
+    lw $t1, YELLOW # load t1 as yellow
+    # m
+    sw $t1, 2056($t0)
+    sw $t1, 2184($t0)
+    sw $t1, 2312($t0)
+    sw $t1, 2440($t0)
+    sw $t1, 2568($t0)
+    sw $t1, 2060($t0)
+    sw $t1, 2064($t0)
+    sw $t1, 2192($t0)
+    sw $t1, 2320($t0)
+    sw $t1, 2448($t0)
+    sw $t1, 2576($t0)
+    sw $t1, 2068($t0)
+    sw $t1, 2072($t0)
+    sw $t1, 2200($t0)
+    sw $t1, 2328($t0)
+    sw $t1, 2456($t0)
+    sw $t1, 2584($t0)
+    # i
+    sw $t1, 2080($t0)
+    sw $t1, 2336($t0)
+    sw $t1, 2464($t0)
+    sw $t1, 2592($t0)
+    # D
+    sw $t1, 2088($t0)
+    sw $t1, 2216($t0)
+    sw $t1, 2344($t0)
+    sw $t1, 2472($t0)
+    sw $t1, 2600($t0)
+    sw $t1, 2092($t0)
+    sw $t1, 2224($t0)
+    sw $t1, 2352($t0)
+    sw $t1, 2480($t0)
+    sw $t1, 2604($t0)
+    # --
+    sw $t1, 2360($t0)
+    sw $t1, 2364($t0)
+    # m
+    sw $t1, 2116($t0)
+    sw $t1, 2244($t0)
+    sw $t1, 2372($t0)
+    sw $t1, 2500($t0)
+    sw $t1, 2628($t0)
+    sw $t1, 2120($t0)
+    sw $t1, 2124($t0)
+    sw $t1, 2252($t0)
+    sw $t1, 2380($t0)
+    sw $t1, 2508($t0)
+    sw $t1, 2636($t0)
+    sw $t1, 2128($t0)
+    sw $t1, 2132($t0)
+    sw $t1, 2260($t0)
+    sw $t1, 2388($t0)
+    sw $t1, 2516($t0)
+    sw $t1, 2644($t0)
+Diff_Hard:
+    lw $t1, RED
+    # H
+    sw $t1, 2824($t0)
+    sw $t1, 2952($t0)
+    sw $t1, 3080($t0)
+    sw $t1, 3208($t0)
+    sw $t1, 3336($t0)
+    sw $t1, 3084($t0)
+    sw $t1, 2832($t0)
+    sw $t1, 2960($t0)
+    sw $t1, 3088($t0)
+    sw $t1, 3216($t0)
+    sw $t1, 3344($t0)
+    # A
+    sw $t1, 2840($t0)
+    sw $t1, 2844($t0)
+    sw $t1, 2848($t0)
+    sw $t1, 2968($t0)
+    sw $t1, 2976($t0)
+    sw $t1, 3096($t0)
+    sw $t1, 3100($t0)
+    sw $t1, 3104($t0)
+    sw $t1, 3224($t0)
+    sw $t1, 3232($t0)
+    sw $t1, 3352($t0)
+    sw $t1, 3360($t0)
+    # R
+    sw $t1, 2856($t0)
+    sw $t1, 2860($t0)
+    sw $t1, 2864($t0)
+    sw $t1, 2984($t0)
+    sw $t1, 2992($t0)
+    sw $t1, 3112($t0)
+    sw $t1, 3116($t0)
+    sw $t1, 3120($t0)
+    sw $t1, 3240($t0)
+    sw $t1, 3248($t0)
+    sw $t1, 3252($t0)
+    sw $t1, 3368($t0)
+    sw $t1, 3380($t0)
+    # D
+    sw $t1, 2876($t0)
+    sw $t1, 3004($t0)
+    sw $t1, 3132($t0)
+    sw $t1, 3260($t0)
+    sw $t1, 3388($t0)
+    sw $t1, 2880($t0)
+    sw $t1, 3012($t0)
+    sw $t1, 3140($t0)
+    sw $t1, 3268($t0)
+    sw $t1, 3392($t0)
+    # --
+    sw $t1, 3148($t0)
+    sw $t1, 3152($t0)
+    # H
+    sw $t1, 2904($t0)
+    sw $t1, 3032($t0)
+    sw $t1, 3160($t0)
+    sw $t1, 3288($t0)
+    sw $t1, 3416($t0)
+    sw $t1, 3164($t0)
+    sw $t1, 2912($t0)
+    sw $t1, 3040($t0)
+    sw $t1, 3168($t0)
+    sw $t1, 3296($t0)
+    sw $t1, 3424($t0)
+    
+    jr $ra
+###################################################################################################################################################
+GG_Retry:
+    lw $t0, ADDR_DSPL
+    lw $t1, RED
+    
+    sw $t1, 688($t0)
+    sw $t1, 684($t0)
+    sw $t1, 680($t0)
+    sw $t1, 676($t0)
+    sw $t1, 804($t0)
+    sw $t1, 932($t0)
+    sw $t1, 1060($t0)
+    sw $t1, 1064($t0)
+    sw $t1, 1068($t0)
+    sw $t1, 1072($t0)
+    sw $t1, 944($t0)
+    
+    sw $t1, 712($t0)
+    sw $t1, 716($t0)
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 840($t0)
+    sw $t1, 968($t0)
+    sw $t1, 1096($t0)
+    sw $t1, 1100($t0)
+    sw $t1, 1104($t0)
+    sw $t1, 1108($t0)
+    sw $t1, 980($t0)
+    # R
+    lw $t1, BLUE
+    sw $t1, 1588($t0)
+    sw $t1, 1592($t0)
+    sw $t1, 1596($t0)
+    sw $t1, 1600($t0)
+    sw $t1, 1716($t0)
+    sw $t1, 1844($t0)
+    sw $t1, 1972($t0)
+    sw $t1, 2100($t0)
+    sw $t1, 1728($t0)
+    sw $t1, 1856($t0)
+    sw $t1, 1852($t0)
+    sw $t1, 1848($t0)
+    sw $t1, 1980($t0)
+    sw $t1, 2112($t0)
+    # Q
+    lw $t1,YELLOW
+    sw $t1, 2612($t0)
+    sw $t1, 2616($t0)
+    sw $t1, 2620($t0)
+    sw $t1, 2624($t0)
+    sw $t1, 2740($t0)
+    sw $t1, 2868($t0)
+    sw $t1, 2996($t0)
+    sw $t1, 3124($t0)
+    sw $t1, 2752($t0)
+    sw $t1, 2880($t0)
+    sw $t1, 3008($t0)
+    sw $t1, 3136($t0)
+    sw $t1, 3132($t0)
+    sw $t1, 3128($t0)
+    sw $t1, 2876($t0)
+    sw $t1, 2884($t0)
+    sw $t1, 2888($t0)
+    sw $t1, 3016($t0)
+    sw $t1, 3144($t0)
+    
+    jr $ra
+######################################################################################################################
+Game_Stop_PDraw:        # Draw the P
+    lw $t0, ADDR_DSPL
+    li $t1, 0x808080
+    sw $t1, 936($t0)
+    sw $t1, 1064($t0)
+    sw $t1, 1192($t0)
+    sw $t1, 1320($t0)
+    sw $t1, 1448($t0)
+    sw $t1, 1576($t0)
+    sw $t1, 1704($t0)
+    sw $t1, 1832($t0)
+    sw $t1, 940($t0)
+    sw $t1, 944($t0)
+    sw $t1, 948($t0)
+    sw $t1, 952($t0)
+    sw $t1, 1084($t0)
+    sw $t1, 1212($t0)
+    sw $t1, 1340($t0)
+    sw $t1, 1464($t0)
+    sw $t1, 1460($t0)
+    sw $t1, 1456($t0)
+    sw $t1, 1452($t0)
+    
+    jr $ra
+####################################################################################################
+O7:
+    lw $t0, ADDR_DSPL
+    lw $t1, YELLOW
+    sw $t1, 3932($t0)
+    sw $t1, 3936($t0)
+    sw $t1, 3940($t0)
+    sw $t1, 3944($t0)
+    
+    sw $t1, 3804($t0)
+    sw $t1, 3800($t0)
+    sw $t1, 3808($t0)
+    sw $t1, 3812($t0)
+    sw $t1, 3816($t0)
+    sw $t1, 3820($t0)
+    
+    #sw $t1, 3676($t0)
+    sw $t1, 3672($t0)
+    sw $t1, 3668($t0)
+    #sw $t1, 3680($t0)
+    #sw $t1, 3684($t0)
+    #sw $t1, 3688($t0)
+    sw $t1, 3692($t0)
+    sw $t1, 3696($t0)
+    
+    sw $t1, 3548($t0)
+    sw $t1, 3544($t0)
+    sw $t1, 3540($t0)
+    sw $t1, 3552($t0)
+    sw $t1, 3556($t0)
+    sw $t1, 3560($t0)
+    sw $t1, 3564($t0)
+    sw $t1, 3568($t0)
+    
+    sw $t1, 3420($t0)
+    sw $t1, 3416($t0)
+    sw $t1, 3412($t0)
+    sw $t1, 3424($t0)
+    sw $t1, 3428($t0)
+    sw $t1, 3432($t0)
+    sw $t1, 3436($t0)
+    sw $t1, 3440($t0)
+    
+    #sw $t1, 3292($t0)
+    sw $t1, 3288($t0)
+    sw $t1, 3284($t0)
+    sw $t1, 3296($t0)
+    sw $t1, 3300($t0)
+    #sw $t1, 3304($t0)
+    sw $t1, 3308($t0)
+    sw $t1, 3312($t0)
+    
+    sw $t1, 3164($t0)
+    sw $t1, 3160($t0)
+    sw $t1, 3168($t0)
+    sw $t1, 3172($t0)
+    sw $t1, 3176($t0)
+    sw $t1, 3180($t0)
+    
+    sw $t1, 3036($t0)
+    sw $t1, 3040($t0)
+    sw $t1, 3044($t0)
+    sw $t1, 3048($t0)
+    
+    
+    lw $t1, WHITE 
+    sw $t1, 3152($t0)
+    sw $t1, 3148($t0)
+    sw $t1, 3024($t0)
+    sw $t1, 3028($t0)
+    
+    jr $ra
+    
+O7_2:
+    lw $t0, ADDR_DSPL
+    lw $t1, YELLOW
+    sw $t1, 3932($t0)
+    sw $t1, 3936($t0)
+    sw $t1, 3940($t0)
+    sw $t1, 3944($t0)
+    
+    sw $t1, 3804($t0)
+    sw $t1, 3800($t0)
+    #sw $t1, 3808($t0)
+    #sw $t1, 3812($t0)
+    sw $t1, 3816($t0)
+    sw $t1, 3820($t0)
+    
+    lw $t1, WHITE
+    sw $t1, 3680($t0)
+    sw $t1, 3684($t0)
+    lw $t1, YELLOW
+    #sw $t1, 3676($t0)
+    sw $t1, 3672($t0)
+    sw $t1, 3668($t0)
+    #sw $t1, 3688($t0)
+    sw $t1, 3692($t0)
+    sw $t1, 3696($t0)
+    
+    sw $t1, 3548($t0)
+    sw $t1, 3544($t0)
+    sw $t1, 3540($t0)
+    #sw $t1, 3552($t0)
+    #sw $t1, 3556($t0)
+    sw $t1, 3560($t0)
+    sw $t1, 3564($t0)
+    sw $t1, 3568($t0)
+    
+    sw $t1, 3420($t0)
+    sw $t1, 3416($t0)
+    sw $t1, 3412($t0)
+    sw $t1, 3424($t0)
+    sw $t1, 3428($t0)
+    sw $t1, 3432($t0)
+    sw $t1, 3436($t0)
+    sw $t1, 3440($t0)
+    
+    #sw $t1, 3292($t0)
+    sw $t1, 3288($t0)
+    sw $t1, 3284($t0)
+    sw $t1, 3296($t0)
+    sw $t1, 3300($t0)
+    #sw $t1, 3304($t0)
+    sw $t1, 3308($t0)
+    sw $t1, 3312($t0)
+    
+    sw $t1, 3164($t0)
+    sw $t1, 3160($t0)
+    sw $t1, 3168($t0)
+    sw $t1, 3172($t0)
+    sw $t1, 3176($t0)
+    sw $t1, 3180($t0)
+    
+    sw $t1, 3036($t0)
+    sw $t1, 3040($t0)
+    sw $t1, 3044($t0)
+    sw $t1, 3048($t0)
+    
+    lw $t1, WHITE 
+    sw $t1, 3152($t0)
+    sw $t1, 3148($t0)
+    sw $t1, 3024($t0)
+    sw $t1, 3028($t0)
+    
+    jr $ra
+################################################################################### Gravity
+Score_Draw_First:
+    lw $t0, ADDR_DSPL
+    lw $t1, WHITE
+    beq $a0, 1, S_D_F_1
+    beq $a0, 2, S_D_F_2
+    beq $a0, 3, S_D_F_3
+    beq $a0, 4, S_D_F_4
+    beq $a0, 5, S_D_F_5
+    beq $a0, 6, S_D_F_6
+    beq $a0, 7, S_D_F_7
+    beq $a0, 8, S_D_F_8
+    beq $a0, 9, S_D_F_9
+    beq $a0, 0, S_D_F_0
+S_D_F_1:
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    jr $ra  
+S_D_F_2:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 624($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 760($t0)
+    jr $ra  
+S_D_F_3:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 632($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 760($t0)
+    jr $ra  
+S_D_F_4:
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 240($t0)
+    sw $t1, 368($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    jr $ra  
+S_D_F_5:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 368($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    jr $ra  
+S_D_F_6:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 368($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 624($t0)
+    jr $ra  
+S_D_F_7:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    jr $ra  
+S_D_F_8:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 368($t0)
+    sw $t1, 504($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 632($t0)
+    sw $t1, 376($t0)
+    sw $t1, 624($t0)
+    jr $ra  
+S_D_F_9:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 376($t0)
+    sw $t1, 504($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 500($t0)
+    sw $t1, 496($t0)
+    sw $t1, 368($t0)
+    jr $ra  
+S_D_F_0:
+    sw $t1, 240($t0)
+    sw $t1, 244($t0)
+    sw $t1, 248($t0)
+    sw $t1, 368($t0)
+    sw $t1, 504($t0)
+    sw $t1, 496($t0)
+    sw $t1, 632($t0)
+    sw $t1, 760($t0)
+    sw $t1, 752($t0)
+    sw $t1, 756($t0)
+    sw $t1, 632($t0)
+    sw $t1, 376($t0)
+    sw $t1, 624($t0)
+    jr $ra  
+################################
+Score_Draw_Second:
+    lw $t0, ADDR_DSPL
+    lw $t1, WHITE
+    beq $a0, 1, S_D_S_1
+    beq $a0, 2, S_D_S_2
+    beq $a0, 3, S_D_S_3
+    beq $a0, 4, S_D_S_4
+    beq $a0, 5, S_D_S_5
+    beq $a0, 6, S_D_S_6
+    beq $a0, 7, S_D_S_7
+    beq $a0, 8, S_D_S_8
+    beq $a0, 9, S_D_S_9
+    beq $a0, 0, S_D_S_0
+S_D_S_1:
+    sw $t1, 232($t0)
+    sw $t1, 360($t0)
+    sw $t1, 488($t0)
+    sw $t1, 616($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_2:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 360($t0)
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    sw $t1, 608($t0)
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_3:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 360($t0)
+    sw $t1, 488($t0)
+    
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_4:
+    sw $t1, 232($t0)
+    sw $t1, 360($t0)
+    sw $t1, 488($t0)
+    sw $t1, 616($t0)
+    sw $t1, 744($t0)
+    
+    sw $t1, 224($t0)
+    sw $t1, 352($t0)
+    sw $t1, 488($t0)
+    
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    jr $ra  
+S_D_S_5:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 352($t0)
+
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_6:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 352($t0)
+
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 608($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_7:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+
+    sw $t1, 232($t0)
+    sw $t1, 360($t0)
+    sw $t1, 488($t0)
+    sw $t1, 616($t0)
+    sw $t1, 744($t0)
+    
+    
+    jr $ra  
+S_D_S_8:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 352($t0)
+    
+    sw $t1, 360($t0)
+    
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 608($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_9:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 352($t0)
+    
+    sw $t1, 360($t0)
+    
+    sw $t1, 488($t0)
+    sw $t1, 484($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+S_D_S_0:
+    sw $t1, 224($t0)
+    sw $t1, 228($t0)
+    sw $t1, 232($t0)
+    sw $t1, 352($t0)
+    
+    sw $t1, 360($t0)
+    
+    sw $t1, 488($t0)
+    sw $t1, 480($t0)
+    
+    sw $t1, 608($t0)
+    
+    sw $t1, 616($t0)
+    
+    sw $t1, 736($t0)
+    sw $t1, 740($t0)
+    sw $t1, 744($t0)
+    jr $ra  
+################################
+Score_Draw_Third:
+    lw $t0, ADDR_DSPL
+    lw $t1, WHITE
+    beq $a0, 1, S_D_T_1
+    beq $a0, 2, S_D_T_2
+    beq $a0, 3, S_D_T_3
+    beq $a0, 4, S_D_T_4
+    beq $a0, 5, S_D_T_5
+    beq $a0, 6, S_D_T_6
+    beq $a0, 7, S_D_T_7
+    beq $a0, 8, S_D_T_8
+    beq $a0, 9, S_D_T_9
+    beq $a0, 0, S_D_T_0
+S_D_T_1:
+    sw $t1, 216($t0)
+    sw $t1, 344($t0)
+    sw $t1, 472($t0)
+    sw $t1, 600($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_2:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 344($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 592($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_3:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 344($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_4:
+    sw $t1, 208($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 344($t0)
+    sw $t1, 336($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 600($t0)
+    
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_5:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 336($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_6:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 336($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 592($t0)
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_7:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 344($t0)
+    
+    sw $t1, 472($t0)
+    
+    sw $t1, 600($t0)
+    
+    sw $t1, 728($t0)
+    
+    
+    jr $ra  
+S_D_T_8:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 336($t0)
+    sw $t1, 344($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 468($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 592($t0)
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_9:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 336($t0)
+    sw $t1, 344($t0)
+    
+    sw $t1, 468($t0)
+    sw $t1, 464($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
+S_D_T_0:
+    sw $t1, 208($t0)
+    sw $t1, 212($t0)
+    sw $t1, 216($t0)
+    
+    sw $t1, 336($t0)
+    sw $t1, 344($t0)
+    
+    sw $t1, 464($t0)
+    sw $t1, 472($t0)
+    
+    sw $t1, 592($t0)
+    sw $t1, 600($t0)
+    
+    sw $t1, 720($t0)
+    sw $t1, 724($t0)
+    sw $t1, 728($t0)
+    jr $ra  
